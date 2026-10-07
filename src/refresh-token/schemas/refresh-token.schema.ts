@@ -25,6 +25,12 @@ export class RefreshToken {
 
     @Prop({
         required: true,
+        index: true,
+    })
+    familyId: string;
+
+    @Prop({
+        required: true,
     })
     expiresAt: Date;
 
