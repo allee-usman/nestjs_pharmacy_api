@@ -5,6 +5,7 @@ import { PasswordService } from './password.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { JwtService } from '@nestjs/jwt';
+import { RefreshTokenService } from '../refresh-token/refresh-token.service.js';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +13,7 @@ export class AuthService {
         private readonly userService: UserService,
         private readonly passwordService: PasswordService,
         private readonly jwtService: JwtService,
+        private readonly refreshTokenService: RefreshTokenService,
     ) { }
 
     async register(dto: RegisterDto) {
@@ -55,8 +57,14 @@ export class AuthService {
             role: user.role,
         });
 
+        const refreshToken =
+            await this.refreshTokenService.create(
+                user._id.toString(),
+            );
+
         return {
             accessToken,
+            refreshToken: refreshToken.token,
             user: {
                 id: user._id,
                 email: user.email,

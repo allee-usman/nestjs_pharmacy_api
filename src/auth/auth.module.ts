@@ -6,10 +6,20 @@ import { PasswordService } from './password.service.js';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
+import { MongooseModule } from '@nestjs/mongoose';
+import { RefreshToken, RefreshTokenSchema } from '../refresh-token/schemas/refresh-token.schema.js';
+import { RefreshTokenService } from '../refresh-token/refresh-token.service.js';
 
 @Module({
   imports: [
     UserModule,
+
+    MongooseModule.forFeature([
+      {
+        name: RefreshToken.name,
+        schema: RefreshTokenSchema,
+      },
+    ]),
 
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -22,7 +32,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
       }),
     }),
   ], // Import UserModule to use UserService in AuthService
-  providers: [AuthService, PasswordService, JwtStrategy],
+  providers: [AuthService, PasswordService, JwtStrategy, RefreshTokenService],
   controllers: [AuthController]
 })
 export class AuthModule {}

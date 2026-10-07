@@ -7,6 +7,7 @@ import { UserModule } from './user/user.module.js';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import configuration from './config/configuration.js';
 import { MongooseModule } from '@nestjs/mongoose';
+import { RefreshTokenModule } from './refresh-token/refresh-token.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -31,6 +32,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     }),
     AuthModule,
     UserModule,
+    RefreshTokenModule,
   ],
   controllers: [AppController],
   providers: [AppService],
