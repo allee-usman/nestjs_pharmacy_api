@@ -9,6 +9,7 @@ import { RefreshTokenService } from '../refresh-token/refresh-token.service.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import mongoose from 'mongoose';
 import { InjectConnection } from '@nestjs/mongoose';
+import { LogoutDto } from './dto/logout.dto.js';
 
 @Injectable()
 export class AuthService {
@@ -167,5 +168,26 @@ export class AuthService {
         } finally {
             await session.endSession();
         }
+    }
+
+    async logout(dto: LogoutDto) {
+        const storedToken =
+            await this.refreshTokenService.findByToken(
+                dto.refreshToken,
+            );
+
+        if (!storedToken) {
+            throw new UnauthorizedException(
+                'Invalid refresh token',
+            );
+        }
+
+        await this.refreshTokenService.revokeFamily(
+            storedToken.familyId,
+        );
+
+        return {
+            message: 'Logged out successfully',
+        };
     }
 }
