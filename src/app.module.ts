@@ -13,9 +13,11 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
 @Module({
   imports: [
+    // NestJS Observe Module: Native observability platform for distributed tracing, 
+    // performance metrics (latencies), and automated error monitoring.
     ObserveModule.forRoot({
-      appKey: 'YOUR_APP_KEY',
-      appSecret: 'YOUR_APP_SECRET',
+      appKey: process.env.OBSERVE_APP_KEY ?? '',
+      appSecret: process.env.OBSERVE_APP_SECRET ?? '',
       serviceId: 'pharmacy-api',
     }),
     ConfigModule.forRoot({

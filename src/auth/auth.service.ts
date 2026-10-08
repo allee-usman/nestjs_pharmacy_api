@@ -76,35 +76,13 @@ export class AuthService {
     }
 
     async refresh(dto: RefreshTokenDto) {
-        const storedToken =
-            await this.refreshTokenService.findByToken(
+        const rotatedToken =
+            await this.refreshTokenService.rotateToken(
                 dto.refreshToken,
             );
 
-        if (!storedToken) {
-            throw new UnauthorizedException(
-                'Invalid refresh token',
-            );
-        }
-
-        if (storedToken.revoked) {
-            await this.refreshTokenService.revokeFamily(
-                storedToken.familyId,
-            );
-
-            throw new UnauthorizedException(
-                'Refresh token reuse detected',
-            );
-        }
-
-        if (storedToken.expiresAt <= new Date()) {
-            throw new UnauthorizedException(
-                'Refresh token has expired',
-            );
-        }
-
         const user = await this.userService.findById(
-            storedToken.userId.toString(),
+            rotatedToken.userId,
         );
 
         if (!user) {
@@ -119,21 +97,9 @@ export class AuthService {
             role: user.role,
         });
 
-        const newRefreshToken =
-            await this.refreshTokenService.create(
-                user._id.toString(),
-                storedToken.familyId,
-            );
-
-        storedToken.revoked = true;
-        storedToken.revokedAt = new Date();
-        storedToken.replacedByTokenId = newRefreshToken.id;
-
-        await storedToken.save();
-
         return {
             accessToken,
-            refreshToken: newRefreshToken.token,
+            refreshToken: rotatedToken.token,
         };
     }
 

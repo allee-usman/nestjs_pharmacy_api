@@ -1,8 +1,9 @@
 
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { createHash, randomBytes } from 'node:crypto';
+import mongoose from 'mongoose';
 
 import {
     RefreshToken,
@@ -14,6 +15,9 @@ export class RefreshTokenService {
     constructor(
         @InjectModel(RefreshToken.name)
         private readonly refreshTokenModel: Model<RefreshTokenDocument>,
+
+        @InjectConnection()
+        private readonly connection: mongoose.Connection,
     ) { }
 
     generateToken(): string {
@@ -72,13 +76,95 @@ export class RefreshTokenService {
             .exec();
     }
 
-    async rotate(
-        token: RefreshTokenDocument,
-    ): Promise<void> {
-        token.revoked = true;
-        token.revokedAt = new Date();
+    async rotateToken(
+        rawToken: string,
+    ): Promise<{
+        token: string;
+        id: string;
+        familyId: string;
+        userId: string;
+    }> {
+        const tokenHash = this.hashToken(rawToken);
 
-        await token.save();
+        return this.connection.transaction(async (session) => {
+            const storedToken =
+                await this.refreshTokenModel
+                    .findOne({
+                        tokenHash,
+                    })
+                    .session(session);
+
+            if (!storedToken) {
+                throw new UnauthorizedException(
+                    'Invalid refresh token',
+                );
+            }
+
+            if (storedToken.revoked) {
+                throw new UnauthorizedException(
+                    'Refresh token reuse detected',
+                );
+            }
+
+            if (storedToken.expiresAt <= new Date()) {
+                throw new UnauthorizedException(
+                    'Refresh token has expired',
+                );
+            }
+
+            const newToken = this.generateToken();
+            const newTokenHash = this.hashToken(newToken);
+
+            const expiresAt = new Date(
+                Date.now() + 30 * 24 * 60 * 60 * 1000,
+            );
+
+            const [createdToken] =
+                await this.refreshTokenModel.create(
+                    [
+                        {
+                            userId: storedToken.userId,
+                            tokenHash: newTokenHash,
+                            familyId: storedToken.familyId,
+                            expiresAt,
+                        },
+                    ],
+                    { session },
+                );
+
+            const updatedToken =
+                await this.refreshTokenModel.findOneAndUpdate(
+                    {
+                        _id: storedToken._id,
+                        revoked: false,
+                    },
+                    {
+                        $set: {
+                            revoked: true,
+                            revokedAt: new Date(),
+                            replacedByTokenId:
+                                createdToken._id.toString(),
+                        },
+                    },
+                    {
+                        new: true,
+                        session,
+                    },
+                );
+
+            if (!updatedToken) {
+                throw new UnauthorizedException(
+                    'Refresh token reuse detected',
+                );
+            }
+
+            return {
+                token: newToken,
+                id: createdToken._id.toString(),
+                familyId: createdToken.familyId,
+                userId: storedToken.userId.toString(),
+            };
+        });
     }
 
     async revokeFamily(familyId: string): Promise<void> {
