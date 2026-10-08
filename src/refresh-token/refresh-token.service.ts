@@ -1,7 +1,7 @@
 
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { createHash, randomBytes } from 'node:crypto';
 import mongoose from 'mongoose';
 
@@ -68,12 +68,21 @@ export class RefreshTokenService {
         };
     }
 
-    async findByToken(token: string): Promise<RefreshTokenDocument | null> {
+    async findByToken(
+        token: string,
+        session?: ClientSession,
+    ): Promise<RefreshTokenDocument | null> {
         const tokenHash = this.hashToken(token);
 
-        return this.refreshTokenModel
-            .findOne({ tokenHash })
-            .exec();
+        const query = this.refreshTokenModel.findOne({
+            tokenHash,
+        });
+
+        if (session) {
+            query.session(session);
+        }
+
+        return query.exec();
     }
 
     async rotateToken(
@@ -167,7 +176,10 @@ export class RefreshTokenService {
         });
     }
 
-    async revokeFamily(familyId: string): Promise<void> {
+    async revokeFamily(
+        familyId: string,
+        session?: ClientSession,
+    ): Promise<void> {
         await this.refreshTokenModel.updateMany(
             {
                 familyId,
@@ -179,6 +191,71 @@ export class RefreshTokenService {
                     revokedAt: new Date(),
                 },
             },
+            session ? { session } : undefined,
         );
+    }
+
+    async createWithSession(
+        userId: string,
+        familyId: string,
+        session: ClientSession,
+    ): Promise<{
+        token: string;
+        tokenHash: string;
+        expiresAt: Date;
+        id: string;
+        familyId: string;
+    }> {
+        const token = this.generateToken();
+        const tokenHash = this.hashToken(token);
+
+        const expiresAt = new Date(
+            Date.now() + 30 * 24 * 60 * 60 * 1000,
+        );
+
+        const [refreshToken] =
+            await this.refreshTokenModel.create(
+                [
+                    {
+                        userId,
+                        tokenHash,
+                        familyId,
+                        expiresAt,
+                    },
+                ],
+                { session },
+            );
+
+        return {
+            token,
+            tokenHash,
+            expiresAt,
+            id: refreshToken._id.toString(),
+            familyId,
+        };
+    }
+
+    async revokeWithSession(
+        token: RefreshTokenDocument,
+        replacementId: string,
+        session: ClientSession,
+    ): Promise<boolean> {
+        const result =
+            await this.refreshTokenModel.updateOne(
+                {
+                    _id: token._id,
+                    revoked: false,
+                },
+                {
+                    $set: {
+                        revoked: true,
+                        revokedAt: new Date(),
+                        replacedByTokenId: replacementId,
+                    },
+                },
+                { session },
+            );
+
+        return result.modifiedCount === 1;
     }
 }

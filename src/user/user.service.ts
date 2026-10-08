@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 
 import { User, UserDocument } from './schemas/user.schema.js';
 import { CreateUserInput } from './types/create-user.input.js';
@@ -30,7 +30,16 @@ export class UserService {
         return this.userModel.findOne({ email }).exec();
     }
 
-    async findById(id: string): Promise<UserDocument | null> {
-        return this.userModel.findById(id).exec();
+    async findById(
+        id: string,
+        session?: ClientSession,
+    ): Promise<UserDocument | null> {
+        const query = this.userModel.findById(id);
+
+        if (session) {
+            query.session(session);
+        }
+
+        return query.exec();
     }
 }

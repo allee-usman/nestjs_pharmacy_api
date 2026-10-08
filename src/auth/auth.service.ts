@@ -7,6 +7,8 @@ import { LoginDto } from './dto/login.dto.js';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshTokenService } from '../refresh-token/refresh-token.service.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import mongoose from 'mongoose';
+import { InjectConnection } from '@nestjs/mongoose';
 
 @Injectable()
 export class AuthService {
@@ -15,6 +17,9 @@ export class AuthService {
         private readonly passwordService: PasswordService,
         private readonly jwtService: JwtService,
         private readonly refreshTokenService: RefreshTokenService,
+
+        @InjectConnection() 
+        private readonly connection: mongoose.Connection,
     ) { }
 
     async register(dto: RegisterDto) {
@@ -76,32 +81,91 @@ export class AuthService {
     }
 
     async refresh(dto: RefreshTokenDto) {
-        const rotatedToken =
-            await this.refreshTokenService.rotateToken(
-                dto.refreshToken,
-            );
+        const session =
+            await this.connection.startSession();
 
-        const user = await this.userService.findById(
-            rotatedToken.userId,
-        );
+        try {
+            let result: {
+                accessToken: string;
+                refreshToken: string;
+            };
 
-        if (!user) {
-            throw new UnauthorizedException(
-                'Invalid refresh token',
-            );
+            await session.withTransaction(async () => {
+                const storedToken =
+                    await this.refreshTokenService.findByToken(
+                        dto.refreshToken,
+                        session,
+                    );
+
+                if (!storedToken) {
+                    throw new UnauthorizedException(
+                        'Invalid refresh token',
+                    );
+                }
+
+                if (storedToken.revoked) {
+                    await this.refreshTokenService.revokeFamily(
+                        storedToken.familyId,
+                    );
+
+                    throw new UnauthorizedException(
+                        'Refresh token reuse detected',
+                    );
+                }
+
+                if (storedToken.expiresAt <= new Date()) {
+                    throw new UnauthorizedException(
+                        'Refresh token has expired',
+                    );
+                }
+
+                const user = await this.userService.findById(
+                    storedToken.userId.toString(),
+                    session,
+                );
+
+                if (!user) {
+                    throw new UnauthorizedException(
+                        'Invalid refresh token',
+                    );
+                }
+
+                const newRefreshToken =
+                    await this.refreshTokenService.createWithSession(
+                        user._id.toString(),
+                        storedToken.familyId,
+                        session,
+                    );
+
+                const rotationSucceeded =
+                    await this.refreshTokenService.revokeWithSession(
+                        storedToken,
+                        newRefreshToken.id,
+                        session,
+                    );
+
+                if (!rotationSucceeded) {
+                    throw new UnauthorizedException(
+                        'Refresh token reuse detected',
+                    );
+                }
+
+                const accessToken =
+                    await this.jwtService.signAsync({
+                        sub: user._id.toString(),
+                        email: user.email,
+                        role: user.role,
+                    });
+
+                result = {
+                    accessToken,
+                    refreshToken: newRefreshToken.token,
+                };
+            });
+
+            return result!;
+        } finally {
+            await session.endSession();
         }
-
-        const accessToken = await this.jwtService.signAsync({
-            sub: user._id.toString(),
-            email: user.email,
-            role: user.role,
-        });
-
-        return {
-            accessToken,
-            refreshToken: rotatedToken.token,
-        };
     }
-
-
 }
