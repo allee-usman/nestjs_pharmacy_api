@@ -1,6 +1,7 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
     Param,
     Patch,
@@ -55,5 +56,12 @@ export class UserController {
     @UseGuards(JwtAuthGuard)
     updateUserPassword(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChangePasswordDto) {
         return this.userService.changePassword(user.id, dto);
+    }
+
+    @Delete(':id')
+    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    deleteUser(@Param('id', ParseObjectIdPipe) id: string) {
+        return this.userService.deleteUser(id);
     }
 }

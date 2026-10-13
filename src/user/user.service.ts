@@ -98,7 +98,6 @@ export class UserService {
         };
     }
 
-
     async updateProfile(
         id: string,
         dto: UpdateProfileDto,
@@ -129,7 +128,6 @@ export class UserService {
         };
     }
 
-
     async changePassword(
         id: string,
         dto: ChangePasswordDto,
@@ -159,5 +157,17 @@ export class UserService {
         await user.save();
 
         return { message: 'Password changed successfully' };
+    }
+
+    async deleteUser(id: string): Promise<{ message: string }> {
+        const deletedUser = await this.userModel
+            .findByIdAndDelete(id)
+            .exec();
+
+        if (!deletedUser) {
+            throw new NotFoundException('User not found');
+        }
+
+        return { message: 'User deleted successfully' };
     }
 }
