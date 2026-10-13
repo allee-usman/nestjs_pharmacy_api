@@ -12,7 +12,7 @@ import { RefreshTokenService } from '../refresh-token/refresh-token.service.js';
 
 @Module({
   imports: [
-    UserModule,
+    UserModule, //  // Import UserModule to use UserService in AuthService
 
     MongooseModule.forFeature([
       {
@@ -31,7 +31,7 @@ import { RefreshTokenService } from '../refresh-token/refresh-token.service.js';
         },
       }),
     }),
-  ], // Import UserModule to use UserService in AuthService
+  ],
   providers: [AuthService, PasswordService, JwtStrategy, RefreshTokenService],
   controllers: [AuthController]
 })

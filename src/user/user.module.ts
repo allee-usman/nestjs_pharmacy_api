@@ -6,6 +6,7 @@ import { UserService } from './user.service.js';
 import { UserController } from './user.controller.js';
 
 import { User, UserSchema } from './schemas/user.schema.js';
+import { PasswordService } from '../auth/password.service.js';
 
 @Module({
   imports: [
@@ -14,10 +15,10 @@ import { User, UserSchema } from './schemas/user.schema.js';
         name: User.name,
         schema: UserSchema,
       },
-    ]),
+    ])
   ],
 
-  providers: [UserService],
+  providers: [UserService, PasswordService],
 
   controllers: [UserController],
 
