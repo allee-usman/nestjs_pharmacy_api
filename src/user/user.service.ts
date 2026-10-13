@@ -10,13 +10,15 @@ import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { PasswordService } from '../auth/password.service.js';
 import { QueryUsersDto } from './dto/query-users.dto.js';
+import { RefreshTokenService } from '../refresh-token/refresh-token.service.js';
 
 @Injectable()
 export class UserService {
     constructor(
         @InjectModel(User.name)
         private readonly userModel: Model<UserDocument>,
-        private readonly passwordService: PasswordService
+        private readonly passwordService: PasswordService,
+        private readonly refreshTokenService: RefreshTokenService,
     ) { }
 
 
@@ -159,14 +161,17 @@ export class UserService {
         return { message: 'Password changed successfully' };
     }
 
-    async deleteUser(id: string): Promise<{ message: string }> {
-        const deletedUser = await this.userModel
-            .findByIdAndDelete(id)
-            .exec();
 
-        if (!deletedUser) {
+    async deleteUser(id: string): Promise<{ message: string }> {
+        const user = await this.userModel.findById(id).exec();
+
+        if (!user) {
             throw new NotFoundException('User not found');
         }
+
+        await this.refreshTokenService.revokeAllForUser(user._id.toString());
+
+        await user.deleteOne();
 
         return { message: 'User deleted successfully' };
     }

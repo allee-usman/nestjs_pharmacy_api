@@ -7,9 +7,11 @@ import { UserController } from './user.controller.js';
 
 import { User, UserSchema } from './schemas/user.schema.js';
 import { PasswordService } from '../auth/password.service.js';
+import { RefreshTokenModule } from '../refresh-token/refresh-token.module.js';
 
 @Module({
   imports: [
+    RefreshTokenModule,
     MongooseModule.forFeature([ // we're telling Nest: "The User model belongs to this module."
       {
         name: User.name,

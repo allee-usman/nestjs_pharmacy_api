@@ -258,4 +258,11 @@ export class RefreshTokenService {
 
         return result.modifiedCount === 1;
     }
+
+    async revokeAllForUser(userId: string): Promise<void> {
+        await this.refreshTokenModel.updateMany(
+            { userId },
+            { $set: { revokedAt: new Date(), revoked:true } },
+        ).exec();
+    }
 }
