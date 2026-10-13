@@ -8,8 +8,8 @@ import { isMongoDuplicateKeyError } from './utlis/is-mongo-duplicate-key-error.j
 import { UserProfile } from './types/user-profile.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
-import { argon2 } from 'crypto';
 import { PasswordService } from '../auth/password.service.js';
+import { QueryUsersDto } from './dto/query-users.dto.js';
 
 @Injectable()
 export class UserService {
@@ -18,6 +18,40 @@ export class UserService {
         private readonly userModel: Model<UserDocument>,
         private readonly passwordService: PasswordService
     ) { }
+
+
+    async findAll(dto: QueryUsersDto) {
+        const { page, limit } = dto;
+        const skip = (page - 1) * limit;
+
+        const [users, total] = await Promise.all([
+            this.userModel
+                .find()
+                .select('_id email role isEmailVerified')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean() // records are read-only; Mongoose doesn't need to create full document instances   
+                .exec(),
+
+            this.userModel.countDocuments().exec(),
+        ]);
+
+        return {
+            users: users.map((user) => ({
+                id: user._id.toString(),
+                email: user.email,
+                role: user.role,
+                isEmailVerified: user.isEmailVerified,
+            })),
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
+    }
 
     async createUser(input: CreateUserInput): Promise<UserDocument> {
         try {

@@ -4,6 +4,7 @@ import {
     Get,
     Param,
     Patch,
+    Query,
     UseGuards,
 } from '@nestjs/common';
 
@@ -14,10 +15,21 @@ import { ParseObjectIdPipe } from '@nestjs/mongoose';
 import { UserService } from './user.service.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { QueryUsersDto } from './dto/query-users.dto.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
+import { UserRole } from './enums/user-role.enum.js';
+import { RolesGuard } from '../auth/guards/roles.guard.js';
 
 @Controller('users')
 export class UserController {
     constructor(private readonly userService: UserService) {}
+
+    @Get()
+    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    getAllUsers(@Query() dto: QueryUsersDto) {
+        return this.userService.findAll(dto);
+    }
 
     @Get('me')
     @UseGuards(JwtAuthGuard)
