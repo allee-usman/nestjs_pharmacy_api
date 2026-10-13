@@ -9,4 +9,9 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
+
+  @Get('test-unhandled-error')
+  testUnhandledError() {
+    throw new Error('Test unhandled exception logging');
+  }
 }
