@@ -3,6 +3,7 @@ import { AppModule, ObserveInstrument } from './app.module.js';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionFilter } from './common/filters/all-exception.filter.js';
 import { RequestDurationInterceptor } from './common/interceptors/request-duration.interceptor.js';
+import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -20,6 +21,7 @@ async function bootstrap() {
 
   app.useGlobalInterceptors(
     new RequestDurationInterceptor(),
+    new ResponseTransformInterceptor(),
   );
   
   app.useGlobalFilters(

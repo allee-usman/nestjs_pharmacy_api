@@ -23,7 +23,7 @@ export class RequestDurationInterceptor
         const startedAt = performance.now();
 
         return next.handle().pipe(
-            tap({
+            tap({ //// Unlike map() which changes the emitted value, tap() observes values without changing them
                 next: () => {
                     const duration = performance.now() - startedAt;
 
