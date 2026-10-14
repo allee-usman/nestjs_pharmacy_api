@@ -20,6 +20,7 @@ import { QueryUsersDto } from './dto/query-users.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from './enums/user-role.enum.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto.js';
 
 @Controller('users')
 export class UserController {
@@ -63,5 +64,12 @@ export class UserController {
     @UseGuards(JwtAuthGuard, RolesGuard)
     deleteUser(@Param('id', ParseObjectIdPipe) id: string) {
         return this.userService.deleteUser(id);
+    }
+
+    @Patch(':id/role')
+    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    updateUserRole(@Param('id', ParseObjectIdPipe) id: string, @Body() dto: UpdateUserRoleDto) {
+        return this.userService.updateUserRole(id, dto);
     }
 }

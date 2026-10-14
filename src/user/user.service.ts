@@ -11,6 +11,7 @@ import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { PasswordService } from '../auth/password.service.js';
 import { QueryUsersDto } from './dto/query-users.dto.js';
 import { RefreshTokenService } from '../refresh-token/refresh-token.service.js';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto.js';
 
 @Injectable()
 export class UserService {
@@ -161,7 +162,6 @@ export class UserService {
         return { message: 'Password changed successfully' };
     }
 
-
     async deleteUser(id: string): Promise<{ message: string }> {
         const user = await this.userModel.findById(id).exec();
 
@@ -174,5 +174,29 @@ export class UserService {
         await user.deleteOne();
 
         return { message: 'User deleted successfully' };
+    }
+
+    async updateUserRole(
+        id: string,
+        dto: UpdateUserRoleDto,
+    ): Promise<UserProfile> {
+        const user = await this.userModel.findByIdAndUpdate(
+            id,
+            { $set: { role: dto.role } },
+            { new: true, runValidators: true },
+        )
+            .select('_id email role isEmailVerified')
+            .exec();
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        return {
+            id: user._id.toString(),
+            email: user.email,
+            role: user.role,
+            isEmailVerified: user.isEmailVerified,
+        };
     }
 }
